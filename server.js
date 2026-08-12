@@ -141,22 +141,82 @@ function classifyAnnouncement(item) {
     impact,
     orderValue
   };
-}app.get("/nse-feed", async (req, res) => {
-  try {
-    const response = await axios.get(
-      "https://www.nseindia.com/api/corporate-announcements?index=equities",
-      {
-        headers: {
-          "User-Agent": "Mozilla/5.0",
-          "Accept": "application/json,text/plain,*/*",
-          "Referer": "https://www.nseindia.com/"
-        }
-      }
-    );
+function formatNseDate(date) {
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
 
-    const classifiedData = response.data.map(classifyAnnouncement);
+  return `${dd}-${mm}-${yyyy}`;
+}
+
+app.get("/nse-feed", async (req, res) => {
+  try {
+    const today = new Date();
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(today.getDate() - 7);
+
+    const fromDate = formatNseDate(sevenDaysAgo);
+    const toDate = formatNseDate(today);
+
+    const headers = {
+      "User-Agent": "Mozilla/5.0",
+      "Accept": "application/json,text/plain,*/*",
+      "Referer": "https://www.nseindia.com/"
+    };
+
+    let announcements = [];
+
+    try {
+      const response = await axios.get(
+        "https://www.nseindia.com/api/corporate-announcements",
+        {
+          params: {
+            index: "equities",
+            from_date: fromDate,
+            to_date: toDate
+          },
+          headers
+        }
+      );
+
+      if (Array.isArray(response.data)) {
+        announcements = response.data;
+      }
+    } catch (dateRangeError) {
+      console.log("Date range request failed. Using latest feed.");
+    }
+
+    // Fallback to latest announcements
+    if (announcements.length === 0) {
+      const response = await axios.get(
+        "https://www.nseindia.com/api/corporate-announcements?index=equities",
+        { headers }
+      );
+
+      announcements = response.data;
+    }
+
+    const classifiedData = announcements
+      .map(classifyAnnouncement)
+      .sort((a, b) => {
+        const priority = {
+          "BIG ORDER": 1,
+          "NEGATIVE": 2,
+          "POSITIVE": 3,
+          "POSSIBLE": 4,
+          "INSIDER": 5,
+          "GENERAL": 6
+        };
+
+        return (
+          (priority[a.category] || 10) -
+          (priority[b.category] || 10)
+        );
+      });
 
     res.json(classifiedData);
+
   } catch (error) {
     res.status(500).json({
       error: "Unable to fetch NSE data",
@@ -164,7 +224,6 @@ function classifyAnnouncement(item) {
     });
   }
 });
-
 app.listen(PORT, () => {
   console.log(`The Insider server running on port ${PORT}`);
 });
