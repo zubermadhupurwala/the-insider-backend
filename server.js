@@ -16,7 +16,6 @@ function classifyAnnouncement(item) {
   let impact = "NEUTRAL";
   let orderValue = "";
 
-  // Try to find amount like ₹850 crore, Rs 120 Cr, INR 50 crore
   const amountMatch = rawText.match(
     /(?:₹|rs\.?|inr)?\s*[\d,.]+\s*(?:crore|cr|lakh|lakhs)/i
   );
@@ -25,7 +24,7 @@ function classifyAnnouncement(item) {
     orderValue = amountMatch[0].trim();
   }
 
-  // Negative events first
+  // NEGATIVE
   if (
     text.includes("cancellation of order") ||
     text.includes("order cancelled") ||
@@ -35,13 +34,19 @@ function classifyAnnouncement(item) {
     text.includes("default") ||
     text.includes("fraud") ||
     text.includes("insolvency") ||
-    text.includes("bankruptcy")
+    text.includes("bankruptcy") ||
+    text.includes("loss widened") ||
+    text.includes("revenue declined") ||
+    text.includes("profit declined") ||
+    text.includes("downgrade") ||
+    text.includes("show cause notice") ||
+    text.includes("regulatory action")
   ) {
     category = "NEGATIVE";
     impact = "NEGATIVE";
   }
 
-  // Big orders / contracts
+  // BIG ORDER
   else if (
     text.includes("received an order") ||
     text.includes("receives an order") ||
@@ -56,26 +61,32 @@ function classifyAnnouncement(item) {
     text.includes("contract awarded") ||
     text.includes("awarded a contract") ||
     text.includes("new contract") ||
-    text.includes("order received")
+    text.includes("order received") ||
+    text.includes("order win") ||
+    text.includes("wins order") ||
+    text.includes("major order")
   ) {
     category = "BIG ORDER";
     impact = "POSITIVE";
   }
 
-  // Insider / promoter activity
+  // INSIDER / PROMOTER
   else if (
     text.includes("insider trading") ||
     text.includes("promoter acquisition") ||
     text.includes("promoter acquired") ||
     text.includes("acquisition of shares") ||
     text.includes("disposal of shares") ||
-    text.includes("promoter transaction")
+    text.includes("promoter transaction") ||
+    text.includes("promoter group") ||
+    text.includes("pledge of shares") ||
+    text.includes("release of pledge")
   ) {
     category = "INSIDER";
     impact = "INSIDER";
   }
 
-  // Other positive developments
+  // POSITIVE CORPORATE EVENTS
   else if (
     text.includes("capacity expansion") ||
     text.includes("expansion") ||
@@ -84,20 +95,41 @@ function classifyAnnouncement(item) {
     text.includes("agreement signed") ||
     text.includes("approval received") ||
     text.includes("product launch") ||
-    text.includes("commercial production")
+    text.includes("commercial production") ||
+    text.includes("new plant") ||
+    text.includes("new facility") ||
+    text.includes("acquisition completed") ||
+    text.includes("acquisition approved") ||
+    text.includes("investment approved") ||
+    text.includes("fund raising approved") ||
+    text.includes("buyback") ||
+    text.includes("bonus issue") ||
+    text.includes("dividend") ||
+    text.includes("profit increased") ||
+    text.includes("profit rises") ||
+    text.includes("profit growth") ||
+    text.includes("revenue increased") ||
+    text.includes("revenue rises") ||
+    text.includes("revenue growth") ||
+    text.includes("record revenue") ||
+    text.includes("record profit")
   ) {
     category = "POSITIVE";
     impact = "POSITIVE";
   }
 
-  // Possible future opportunity
+  // POSSIBLE OPPORTUNITY
   else if (
     text.includes("lowest bidder") ||
     text.includes("l1 bidder") ||
     text.includes("preferred bidder") ||
     text.includes("tender") ||
     text.includes("under discussion") ||
-    text.includes("proposed acquisition")
+    text.includes("proposed acquisition") ||
+    text.includes("proposed expansion") ||
+    text.includes("expression of interest") ||
+    text.includes("memorandum of understanding") ||
+    text.includes("mou signed")
   ) {
     category = "POSSIBLE";
     impact = "POSSIBLE";
