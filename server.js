@@ -300,19 +300,7 @@ app.get("/market-data", async (req, res) => {
         });
     }
 });
-    } catch (error) {
-        console.error(
-            "Market data error:",
-            error.response?.status,
-            error.message
-        );
-
-        res.status(500).json({
-            error: "Unable to fetch market data",
-            message: error.message
-        });
-    }
-});
+  
 app.listen(PORT, () => {
   console.log(`The Insider server running on port ${PORT}`);
 });
