@@ -248,11 +248,10 @@ app.get("/market-data", async (req, res) => {
         const response = await axios.get(
             "https://api.twelvedata.com/quote",
             {
-                params: {
-                    symbol: symbol,
-                    exchange: "NSE",
-                    apikey: apiKey
-                },
+               params: {
+    symbol: `${symbol}:NSE`,
+    apikey: apiKey
+},
                 timeout: 10000
             }
         );
