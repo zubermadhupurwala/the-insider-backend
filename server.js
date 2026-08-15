@@ -225,7 +225,6 @@ app.get("/nse-feed", async (req, res) => {
     });
   }
 });
-// Market Data endpoint for Insider Intelligence Engine
 app.get("/market-data", async (req, res) => {
     try {
         const symbol = String(req.query.symbol || "")
@@ -238,45 +237,44 @@ app.get("/market-data", async (req, res) => {
             });
         }
 
-        const headers = {
-            "User-Agent": "Mozilla/5.0",
-            "Accept": "application/json,text/plain,*/*",
-            "Referer": "https://www.nseindia.com/"
-        };
+        const apiKey = process.env.TWELVE_DATA_API_KEY;
 
-        // Get NSE quote data
+        if (!apiKey) {
+            return res.status(500).json({
+                error: "TWELVE_DATA_API_KEY is not configured"
+            });
+        }
+
         const response = await axios.get(
-            "https://www.nseindia.com/api/quote-equity",
+            "https://api.twelvedata.com/quote",
             {
                 params: {
-                    symbol: symbol
+                    symbol: symbol,
+                    exchange: "NSE",
+                    apikey: apiKey
                 },
-                headers,
                 timeout: 10000
             }
         );
 
         const data = response.data || {};
-        const priceInfo = data.priceInfo || {};
-        const securityInfo = data.securityInfo || {};
 
-        const currentPrice =
-            Number(priceInfo.lastPrice) || 0;
-
-        const previousClose =
-            Number(priceInfo.previousClose) || 0;
-
-        let priceChangePercent = 0;
-
-        if (previousClose > 0) {
-            priceChangePercent =
-                ((currentPrice - previousClose) / previousClose) * 100;
+        if (data.status === "error") {
+            return res.status(400).json({
+                error: data.message || "Unable to fetch market data"
+            });
         }
 
-        const tradedVolume =
-            Number(securityInfo.totalTradedVolume) || 0;
+        const currentPrice = Number(data.close) || 0;
+        const previousClose = Number(data.previous_close) || 0;
+        const tradedVolume = Number(data.volume) || 0;
 
-        // Temporary baseline until historical average-volume layer is added
+        let priceChangePercent = Number(data.percent_change);
+
+        if (!Number.isFinite(priceChangePercent)) {
+            priceChangePercent = 0;
+        }
+
         const volumeRatio = 1.0;
 
         res.json({
@@ -289,6 +287,19 @@ app.get("/market-data", async (req, res) => {
             volumeRatio: volumeRatio
         });
 
+    } catch (error) {
+        console.error(
+            "Market data error:",
+            error.response?.status,
+            error.message
+        );
+
+        res.status(500).json({
+            error: "Unable to fetch market data",
+            message: error.message
+        });
+    }
+});
     } catch (error) {
         console.error(
             "Market data error:",
