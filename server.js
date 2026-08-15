@@ -287,11 +287,12 @@ app.get("/market-data", async (req, res) => {
         });
 
     } catch (error) {
-        console.error(
-            "Market data error:",
-            error.response?.status,
-            error.message
-        );
+       console.error(
+    "Market data error:",
+    error.response?.status,
+    error.response?.data,
+    error.message
+);
 
         res.status(500).json({
             error: "Unable to fetch market data",
