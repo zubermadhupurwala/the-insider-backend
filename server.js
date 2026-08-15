@@ -237,62 +237,95 @@ app.get("/market-data", async (req, res) => {
             });
         }
 
-        const apiKey = process.env.TWELVE_DATA_API_KEY;
-
-        if (!apiKey) {
-            return res.status(500).json({
-                error: "TWELVE_DATA_API_KEY is not configured"
-            });
-        }
+        const yahooSymbol = `${symbol}.NS`;
 
         const response = await axios.get(
-            "https://api.twelvedata.com/quote",
+            `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}`,
             {
-               params: {
-    symbol: `${symbol}:NSE`,
-    apikey: apiKey
-},
+                params: {
+                    range: "5d",
+                    interval: "1d"
+                },
+                headers: {
+                    "User-Agent": "Mozilla/5.0"
+                },
                 timeout: 10000
             }
         );
 
-        const data = response.data || {};
+        const result =
+            response.data?.chart?.result?.[0];
 
-        if (data.status === "error") {
-            return res.status(400).json({
-                error: data.message || "Unable to fetch market data"
+        if (!result) {
+            return res.status(404).json({
+                error: "Market data not found"
             });
         }
 
-        const currentPrice = Number(data.close) || 0;
-        const previousClose = Number(data.previous_close) || 0;
-        const tradedVolume = Number(data.volume) || 0;
+        const meta = result.meta || {};
+        const quote =
+            result.indicators?.quote?.[0] || {};
 
-        let priceChangePercent = Number(data.percent_change);
+        const currentPrice =
+            Number(meta.regularMarketPrice) || 0;
 
-        if (!Number.isFinite(priceChangePercent)) {
-            priceChangePercent = 0;
+        const previousClose =
+            Number(meta.chartPreviousClose) ||
+            Number(meta.previousClose) ||
+            0;
+
+        let priceChangePercent = 0;
+
+        if (previousClose > 0) {
+            priceChangePercent =
+                ((currentPrice - previousClose) / previousClose) * 100;
         }
 
-        const volumeRatio = 1.0;
+        const volumes =
+            Array.isArray(quote.volume)
+                ? quote.volume.filter(v => Number.isFinite(v))
+                : [];
+
+        const tradedVolume =
+            volumes.length > 0
+                ? Number(volumes[volumes.length - 1]) || 0
+                : 0;
+
+        let volumeRatio = 1.0;
+
+        if (volumes.length >= 2) {
+            const previousVolumes =
+                volumes.slice(0, -1);
+
+            const averageVolume =
+                previousVolumes.reduce((sum, v) => sum + v, 0) /
+                previousVolumes.length;
+
+            if (averageVolume > 0) {
+                volumeRatio =
+                    tradedVolume / averageVolume;
+            }
+        }
 
         res.json({
             symbol: symbol,
+            yahooSymbol: yahooSymbol,
             currentPrice: currentPrice,
             previousClose: previousClose,
             priceChangePercent:
                 Number(priceChangePercent.toFixed(2)),
             tradedVolume: tradedVolume,
-            volumeRatio: volumeRatio
+            volumeRatio:
+                Number(volumeRatio.toFixed(2))
         });
 
     } catch (error) {
-       console.error(
-    "Market data error:",
-    error.response?.status,
-    error.response?.data,
-    error.message
-);
+        console.error(
+            "Market data error:",
+            error.response?.status,
+            error.response?.data,
+            error.message
+        );
 
         res.status(500).json({
             error: "Unable to fetch market data",
@@ -300,7 +333,7 @@ app.get("/market-data", async (req, res) => {
         });
     }
 });
-  
+
 app.listen(PORT, () => {
   console.log(`The Insider server running on port ${PORT}`);
 });
